@@ -5,23 +5,27 @@ let players = [];
 
 server.on('connection', socket => {
     console.log('Un joueur est connecté');
-    players.push(socket);
     
-    if (players.length === 2) {
-        // Nous avons deux joueurs, commençons le jeu
-        players.forEach((player, index) => {
-            player.send(JSON.stringify({ type: 'start', player: index + 1 }));
-        });
-        players = [];
-    }
-
     socket.on('message', message => {
-        console.log('Message reçu:', message);
-        players.forEach(player => {
-            if (player !== socket) {
-                player.send(message);
+        const data = JSON.parse(message);
+        if (data.type === 'name') {
+            socket.playerName = data.name;
+            players.push(socket);
+            
+            if (players.length === 2) {
+                players.forEach((player, index) => {
+                    const opponentName = players[(index + 1) % 2].playerName;
+                    player.send(JSON.stringify({ type: 'start', player: index + 1, opponent: opponentName }));
+                });
+                players = [];
             }
-        });
+        } else if (data.type === 'update') {
+            players.forEach(player => {
+                if (player !== socket) {
+                    player.send(message);
+                }
+            });
+        }
     });
 
     socket.on('close', () => {
